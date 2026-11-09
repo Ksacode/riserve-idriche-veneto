@@ -1,0 +1,63 @@
+# Raccoglie i dati e pubblica il sito su GitHub Pages ogni 15 minuti.
+# Il database SQLite resta fra un lancio e l'altro come allegato della release "dati".
+name: Aggiorna dati e sito
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # GitHub puo' ritardare i lanci programmati di alcuni minuti
+  workflow_dispatch: {}       # pulsante "Run workflow" per un aggiornamento manuale
+
+permissions:
+  contents: write   # per aggiornare l'allegato della release "dati"
+  pages: write
+  id-token: write
+
+concurrency:
+  group: aggiorna
+  cancel-in-progress: false
+
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Recupera il database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dati
+          if gh release download dati -p riserve.sqlite.gz -D dati; then
+            gunzip -f dati/riserve.sqlite.gz
+          else
+            echo "Nessun database salvato: primo avvio, si parte da zero (circa 10 minuti)."
+            gh release create dati --title "Database" --notes "Database SQLite aggiornato automaticamente dal workflow." || true
+          fi
+
+      - name: Raccolta ed esportazione
+        run: python -m monitor.esporta --raccogli --out sito
+
+      - name: Salva il database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gzip -kf dati/riserve.sqlite
+          gh release upload dati dati/riserve.sqlite.gz --clobber
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sito
+      - id: deploy
+        uses: actions/deploy-pages@v4
