@@ -45,6 +45,9 @@ header .live { color: var(--text-2); font-size: 13px; display: flex; gap: 14px; 
 .dona { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--surface); background: var(--text);
   border-radius: 6px; padding: 5px 12px; text-decoration: none; white-space: nowrap; }
 .dona:hover { opacity: .85; }
+.azioni { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.azioni .dona { margin-left: 0; }
+.dona.contatto { color: var(--text); background: transparent; box-shadow: inset 0 0 0 1.5px var(--text); }
 .sostieni { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
 .sostieni p { margin: 0; color: var(--text-2); font-size: 13px; max-width: 80ch; flex: 1 1 320px; }
 .sostieni .dona { margin-left: 0; }
@@ -52,7 +55,7 @@ header .live { color: var(--text-2); font-size: 13px; display: flex; gap: 14px; 
 .dot.off { background: var(--critical); }
 main { max-width: 1400px; margin: 0 auto; padding: 16px 24px 48px; display: grid; gap: 16px;
   grid-template-columns: minmax(0, 1fr); }  /* senza questo, tabelle larghe allargano la pagina sul telefono */
-@media (max-width: 600px) { header .dona { margin-left: 0; } .row input[type=search], .row select { flex: 1 1 140px; min-width: 0; } }
+@media (max-width: 600px) { header .azioni { margin-left: 0; } .row input[type=search], .row select { flex: 1 1 140px; min-width: 0; } }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; min-width: 0; }
 .card h2 { font-size: 15px; margin: 0 0 2px; font-weight: 650; }
 .card .sub { color: var(--text-2); font-size: 12.5px; margin: 0 0 12px; }
@@ -144,7 +147,10 @@ a { color: var(--s1); }
     <span>Ora: <b id="orologio">–</b></span>
     <span>Pagina aggiornata <b data-rel id="refresh-t">–</b> · ricarica ogni 30 s</span>
   </div>
-  <a class="dona" href="https://paypal.me/ksacode" target="_blank" rel="noopener">Sostieni il progetto</a>
+  <div class="azioni">
+    <a class="dona contatto" data-contatto href="#">Contattami</a>
+    <a class="dona" href="https://paypal.me/ksacode" target="_blank" rel="noopener">Sostieni il progetto</a>
+  </div>
 </header>
 
 <main id="app">
@@ -252,8 +258,16 @@ a { color: var(--s1); }
   <section class="card sostieni">
     <p>Questo sito è gratuito, senza pubblicità e senza cookie di profilazione. Raccoglie e aggiorna da solo i dati pubblici sulle riserve idriche del Veneto.
       Se ti è utile puoi sostenerlo con una donazione libera.</p>
-    <a class="dona" href="https://paypal.me/ksacode" target="_blank" rel="noopener">Dona con PayPal</a>
+    <div class="azioni">
+      <a class="dona contatto" data-contatto href="#">Contattami</a>
+      <a class="dona" href="https://paypal.me/ksacode" target="_blank" rel="noopener">Dona con PayPal</a>
+    </div>
   </section>
+<script>/* indirizzo composto qui per ostacolare i raccoglitori di email */
+document.querySelectorAll("[data-contatto]").forEach(a => {
+  const e = ["ksajural", "hotmail.it"].join("@");
+  a.href = "mailto:" + e + "?subject=" + encodeURIComponent("Riserve idriche del Veneto"); a.title = e;
+});</script>
 
   <section class="card testo-info">
     <h2>Cos’è questo sito</h2>
