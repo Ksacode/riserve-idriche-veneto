@@ -27,6 +27,49 @@ GIORNI_RISOLUZIONE_PIENA = 7  # oltre, gli idrometri si tengono solo al passo or
 MARGINE = timedelta(minutes=10)  # i lanci programmati non sono puntuali
 
 
+URL_SITO = "https://ksacode.github.io/riserve-idriche-veneto/"
+# codice di verifica di Google Search Console (meta tag "google-site-verification"), se presente
+GOOGLE_VERIFICA = ""
+
+
+def testa_seo(generato: str) -> str:
+    """Tag per motori di ricerca e anteprime social: solo nel sito pubblicato (URL assoluti)."""
+    titolo = "Riserve idriche del Veneto: fiumi, falde, invasi e neve in tempo reale"
+    descr = ("Livello di fiumi e falde del Veneto in tempo reale, riempimento degli invasi, severità idrica, "
+             "neve e Lago di Garda. Dati ARPAV e Osservatorio Alpi Orientali aggiornati ogni 15 minuti.")
+    img = URL_SITO + "anteprima.png"
+    dati = {
+        "@context": "https://schema.org", "@type": "Dataset",
+        "name": "Riserve idriche del Veneto in tempo reale",
+        "description": descr, "url": URL_SITO, "inLanguage": "it", "isAccessibleForFree": True,
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "keywords": ["Veneto", "riserve idriche", "siccità", "livello fiumi", "idrometri", "falde",
+                     "freatimetri", "invasi", "neve", "Lago di Garda", "ARPAV"],
+        "spatialCoverage": {"@type": "Place", "name": "Veneto, Italia"},
+        "temporalCoverage": f"2010-01-01/{generato[:10]}",
+        "dateModified": generato,
+        "creator": {"@type": "Person", "name": "Ksacode", "url": "https://github.com/Ksacode"},
+        "isBasedOn": ["https://www.arpa.veneto.it/", "https://distrettoalpiorientali.it/osservatorio-permanente/"],
+        "distribution": [{"@type": "DataDownload", "encodingFormat": "application/json",
+                          "contentUrl": URL_SITO + "api/tutto.json"}],
+    }
+    righe = [
+        f'<link rel="canonical" href="{URL_SITO}">',
+        '<meta property="og:type" content="website">',
+        '<meta property="og:locale" content="it_IT">',
+        f'<meta property="og:title" content="{titolo}">',
+        f'<meta property="og:description" content="{descr}">',
+        f'<meta property="og:url" content="{URL_SITO}">',
+        f'<meta property="og:image" content="{img}">',
+        '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">',
+        '<meta name="twitter:card" content="summary_large_image">',
+        f'<script type="application/ld+json">{json.dumps(dati, ensure_ascii=False)}</script>',
+    ]
+    if GOOGLE_VERIFICA:
+        righe.append(f'<meta name="google-site-verification" content="{GOOGLE_VERIFICA}">')
+    return "\n".join(righe) + "\n"
+
+
 def nome_file_serie(stazione: str, sensore: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]", "_", f"{stazione}__{sensore}") + ".json"
 
@@ -93,7 +136,16 @@ def esporta(out: Path):
     # statistiche delle visite senza cookie (GoatCounter), solo sul sito pubblicato
     html = html.replace("</head>", '<script data-goatcounter="https://ksajural.goatcounter.com/count" '
                         'async src="https://gc.zgo.at/count.js"></script></head>', 1)
+    html = html.replace("</head>", testa_seo(corpo["generato"]) + "</head>", 1)
     (out / "index.html").write_text(html, encoding="utf-8")
+    for f in server.STATIC.iterdir():  # immagini e altri file statici (anteprima per i social)
+        if f.is_file() and f.name != "index.html":
+            shutil.copy2(f, out / f.name)
+    (out / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f'  <url><loc>{URL_SITO}</loc><lastmod>{corpo["generato"][:10]}</lastmod>'
+        '<changefreq>hourly</changefreq></url>\n</urlset>\n', encoding="utf-8")
     (out / ".nojekyll").write_text("")
     log(f"esporta: sito in {out} ({len(coppie)} serie)")
 
