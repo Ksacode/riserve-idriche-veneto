@@ -90,6 +90,9 @@ def esporta(out: Path):
     # la pagina e' la stessa del monitor locale, marcata come statica
     html = (server.STATIC / "index.html").read_text(encoding="utf-8")
     html = html.replace('<html lang="it">', '<html lang="it" data-statico>', 1)
+    # statistiche delle visite senza cookie (GoatCounter), solo sul sito pubblicato
+    html = html.replace("</head>", '<script data-goatcounter="https://ksajural.goatcounter.com/count" '
+                        'async src="https://gc.zgo.at/count.js"></script></head>', 1)
     (out / "index.html").write_text(html, encoding="utf-8")
     (out / ".nojekyll").write_text("")
     log(f"esporta: sito in {out} ({len(coppie)} serie)")
