@@ -29,7 +29,7 @@ MARGINE = timedelta(minutes=10)  # i lanci programmati non sono puntuali
 
 URL_SITO = "https://ksacode.github.io/riserve-idriche-veneto/"
 # codice di verifica di Google Search Console (meta tag "google-site-verification"), se presente
-GOOGLE_VERIFICA = ""
+GOOGLE_VERIFICA = "GZk0hfLm1nVGLDXXiy4cz5pxRfeHRT9E2PPKdQydmtw"
 
 
 def testa_seo(generato: str) -> str:
