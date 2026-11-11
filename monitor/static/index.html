@@ -173,6 +173,7 @@ a { color: var(--s1); }
       <span class="idro-leg"><span class="idro nd"></span> nessun dato recente</span>
       <span class="idro-leg"><span class="pozzo"><i style="height:60%"></i></span> pozzo di falda: pieno = massimo storico, vuoto = minimo storico (dal 2010)</span>
       <span class="idro-leg"><span class="pozzo rec"><i style="height:0%"></i></span> fuori dai valori storici</span>
+      <span class="idro-leg"><span class="pozzo nd"></span> pozzo non più aggiornato</span>
       <span class="muted" id="riemp-nota"></span>
     </div>
     <div class="grid-fiumi" style="margin-top:16px">
@@ -679,8 +680,12 @@ function renderFiumiSelezione() {
 let livelloFalde, markersFalde = {}, selFalda = null, faldaGiorni = 0;
 // valore attuale: ultima misura oraria; se manca, ultima media giornaliera dell'archivio
 const valFalda = x => x.v != null ? x.v : x.esc?.ultimo_gg ?? null;
+// pozzo fermo: niente misure orarie e ultima media giornaliera piu' vecchia di 90 giorni
+// (l'archivio ARPAV arriva fino a fine mese precedente, quindi 30-55 giorni di ritardo sono normali)
+const fermaFalda = x => x.v == null && !!x.esc?.al && Date.now() - new Date(x.esc.al) > 90 * 864e5;
 function posFalda(x) {  // posizione fra minimo e massimo storici (puo' uscire da 0..1)
   const v = valFalda(x);
+  if (fermaFalda(x)) return null;  // un dato vecchio non dice come sta la falda oggi
   if (v == null || !x.esc || x.esc.max <= x.esc.min) return null;
   return (v - x.esc.min) / (x.esc.max - x.esc.min);
 }
@@ -715,7 +720,8 @@ function renderFalde(d) {
       mk.bindTooltip(() => {
         const p = posFalda(x), fu = fuoriStorico(x);
         return h("div", {}, h("b", {}, "Pozzo " + x.nome), h("br"), h("span", { class: "muted" }, "falda freatica"), h("br"),
-          valFalda(x) != null ? `Livello ${fmt(valFalda(x), 2)} m s.l.m.` + (x.v == null ? " (ultima media giornaliera)" : "") : "nessun dato", h("br"),
+          fermaFalda(x) ? h("b", {}, `Non aggiornato: ultimo dato del ${fmtData(x.esc.al)}`) :
+          valFalda(x) != null ? `Livello ${fmt(valFalda(x), 2)} m s.l.m.` + (x.v == null ? ` (media giornaliera del ${fmtData(x.esc.al)})` : "") : "nessun dato", h("br"),
           p != null ? (fu ? fu.toUpperCase() : `Riempimento ${fmt(p * 100, 0)}% fra minimo e massimo storici`) : "", p != null ? h("br") : null,
           x.esc ? `min ${fmt(x.esc.min, 2)} (${fmtData(x.esc.min_data)}) – max ${fmt(x.esc.max, 2)} (${fmtData(x.esc.max_data)})` : "", h("br"),
           h("span", { class: "muted" }, x.esc ? `storico dal ${fmtData(x.esc.dal)}` : ""));
@@ -729,12 +735,12 @@ function renderFalde(d) {
     return h("tr", { class: x.id === selFalda ? "sel" : "", "data-id": x.id, tabindex: 0, onclick: () => selezionaFalda(x.id), onkeydown: e => e.key === "Enter" && selezionaFalda(x.id) },
       h("td", {}, h("div", {}, x.nome), h("div", { class: "muted small" }, x.prov || "")),
       h("td", { class: "num" }, fmt(valFalda(x), 2), x.v == null && valFalda(x) != null ? h("div", { class: "muted small" }, "media gg") : null),
-      h("td", { class: "small t2", style: "white-space:nowrap" }, p == null ? "–" : fu ? chip("critical", "!", fu.replace(" storico", "")) :
+      h("td", { class: "small t2", style: "white-space:nowrap" }, fermaFalda(x) ? `fermo dal ${fmtData(x.esc.al)}` : p == null ? "–" : fu ? chip("critical", "!", fu.replace(" storico", "")) :
         h("span", {}, h("span", { class: "mini falda", role: "meter", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": Math.round(p * 100), "aria-label": "Posizione fra minimo e massimo storici" },
           h("i", { style: `width:${p * 100}%` })), " " + fmt(p * 100, 0) + "%")),
       h("td", { class: "num" }, x.d7 == null ? "–" : fmtSigned(x.d7, 2) + " m"),
       h("td", {}, x.spark ? sparkline(x.spark.map(p => p[1])) : ""),
-      h("td", { class: "num muted" }, x.t ? fmtOra(x.t) : "nessun dato"));
+      h("td", { class: "num muted" }, x.t ? fmtOra(x.t) : x.esc?.al ? fmtData(x.esc.al) : "nessun dato"));
   }));
   if (!selFalda && d.falde.length) selezionaFalda((fuori[0] || d.falde.find(x => x.esc) || d.falde[0]).id);
   else if (selFalda) selezionaFalda(selFalda, true);
