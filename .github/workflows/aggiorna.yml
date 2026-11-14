@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write   # per aggiornare l'allegato della release "dati"
+  actions: write    # per far partire il giro successivo
   pages: write
   id-token: write
 
@@ -61,3 +62,17 @@ jobs:
           path: sito
       - id: deploy
         uses: actions/deploy-pages@v4
+
+      # GitHub lancia i cron dei progetti gratuiti anche solo ogni qualche ora: ogni giro
+      # quindi fa partire il successivo dopo ~15 minuti (il cron resta come riserva se la catena si spezza).
+      # Con "concurrency" ci puo' essere al massimo un giro in attesa, quindi le catene non si moltiplicano.
+      - name: Programma il prossimo giro
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          inizio=$(date -d "$(gh run view ${{ github.run_id }} --json startedAt -q .startedAt)" +%s)
+          attesa=$(( inizio + 14*60 - $(date +%s) ))
+          [ "$attesa" -gt 0 ] && sleep "$attesa"
+          altri=$(gh run list -w aggiorna.yml --json status,databaseId             -q '[.[] | select((.status=="queued" or .status=="pending" or .status=="waiting") and .databaseId != ${{ github.run_id }})] | length')
+          if [ "$altri" = "0" ]; then gh workflow run aggiorna.yml --ref main; else echo "un giro e' gia' in coda"; fi

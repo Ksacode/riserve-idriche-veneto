@@ -85,6 +85,7 @@ input, select { font: inherit; font-size: 13px; color: var(--text); background: 
 .tile .value { font-size: 30px; font-weight: 620; line-height: 1.2; margin: 4px 0 2px; }
 .tile .value small { font-size: 15px; font-weight: 500; color: var(--text-2); }
 .tile .foot { color: var(--muted); font-size: 12px; }
+.tile .eta { margin-top: 6px; font-size: 12px; }
 .meter { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; }
 .meter > div { height: 100%; border-radius: 4px; background: var(--s1); }
 .meters { display: grid; grid-template-columns: max-content 1fr max-content; gap: 8px 12px; align-items: center; font-size: 13px; }
@@ -332,6 +333,14 @@ const STATI = {
 };
 const chip = (cls, icon, label) => h("span", { class: `chip ${cls}` }, h("i", { "aria-hidden": "true" }, icon), label);
 const SEV = { nulla: ["good", "✓"], bassa: ["warning", "!"], media: ["serious", "!"], alta: ["critical", "✕"] };
+// eta' di un dato periodico: oltre 20 giorni lo segnalo, cosi' non sembra la situazione di oggi
+function etaDato(data) {
+  if (!data) return null;
+  const g = Math.floor((Date.now() - new Date(data)) / 864e5);
+  if (g <= 20) return null;
+  const q = g < 45 ? `${Math.round(g / 7)} settimane` : g < 365 ? `${Math.round(g / 30.4)} mesi` : "oltre un anno";
+  return h("div", { class: "eta" }, chip("warning", "⏱", `dato di ${q} fa`));
+}
 const sevChip = (cl) => cl ? chip(SEV[cl][0], SEV[cl][1], "Severità " + cl) : chip("none", "?", "n.d.");
 
 const BACINI = ["Adige", "Brenta-Bacchiglione", "Piave", "Livenza", "Tagliamento"];
@@ -518,21 +527,21 @@ function renderTiles(d) {
   const ultimaSwe = [...d.bollettini.storia].reverse().find(r => r.swe_piave_mmc != null);
   const tiles = [
     ["Invasi del distretto", tot ? h("span", {}, fmt(tot.perc, 0), h("small", {}, " %")) : "–",
-      tot ? `${fmt(tot.volume_invasato, 0)} di ${fmt(tot.volume_utile, 0)} Mm³ · al ${fmtData(inv.data)}` : ""],
+      tot ? `${fmt(tot.volume_invasato, 0)} di ${fmt(tot.volume_utile, 0)} Mm³ · ultimo bollettino: ${fmtData(inv.data)}` : "", inv?.data],
     ["Severità idrica Veneto", h("div", { style: "display:grid;gap:6px;font-size:14px;margin-top:6px" },
       ...(sev.length ? sev.map(r => h("div", {}, sevChip(r.classe), h("span", { class: "t2 small" }, "  " + r.area + " · acque " + r.comparto))) : [h("span", { class: "muted" }, "n.d.")])),
-      sev.length ? "seduta del " + fmtData(sev[0].data) : ""],
+      sev.length ? "seduta del " + fmtData(sev[0].data) : "", sev[0]?.data],
     ["Neve (SWE) bacino del Piave", ultimaSwe ? h("span", {}, fmt(ultimaSwe.swe_piave_mmc, 0), h("small", {}, " Mm³")) : "–",
       ultimaSwe ? `al ${fmtData(ultimaSwe.data)}${ultimaSwe.sspi != null ? " · SSPI " + fmt(ultimaSwe.sspi, 2) : ""}` : ""],
     ...(garda ? [["Lago di Garda", garda.liv ? h("span", {}, fmt(garda.liv.v, 2), h("small", {}, " m")) : "–",
       garda.liv ? `${fmtSigned(garda.liv.d24)} m in 24 h · idrometro di Peschiera · ${fmtOra(garda.liv.t)}` : "nessun dato recente"]] : []),
     ["Pioggia ultimo mese", b.precip_mm != null ? h("span", {}, fmt(b.precip_mm, 0), h("small", {}, " mm")) : "–",
-      b.precip_scarto_pct != null ? `${fmtSigned(b.precip_scarto_pct, 0)}% rispetto alla media · ${fmtData(b.data)}` : ""],
+      b.precip_scarto_pct != null ? `${fmtSigned(b.precip_scarto_pct, 0)}% rispetto alla media · mese chiuso il ${fmtData(b.data)}` : "", b.data],
     ["Serbatoi Piave", b.serbatoi_piave_pct != null ? h("span", {}, fmt(b.serbatoi_piave_pct, 0), h("small", {}, " %")) : "–",
-      b.serbatoi_piave_mmc != null ? `${fmt(b.serbatoi_piave_mmc, 1)} Mm³ · Corlo ${fmt(b.corlo_pct, 0)}% · ${fmtData(b.data)}` : ""],
+      b.serbatoi_piave_mmc != null ? `${fmt(b.serbatoi_piave_mmc, 1)} Mm³ · Corlo ${fmt(b.corlo_pct, 0)}% · al ${fmtData(b.data)}` : "", b.data],
   ];
-  $("#tiles").replaceChildren(...tiles.map(([l, v, f]) => h("div", { class: "card tile" },
-    h("div", { class: "label" }, l), h("div", { class: "value" }, v), h("div", { class: "foot" }, f))));
+  $("#tiles").replaceChildren(...tiles.map(([l, v, f, data]) => h("div", { class: "card tile" },
+    h("div", { class: "label" }, l), h("div", { class: "value" }, v), h("div", { class: "foot" }, f), etaDato(data))));
 }
 
 function renderInvasi(d) {
